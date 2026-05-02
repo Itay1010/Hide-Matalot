@@ -48,52 +48,47 @@
     }
 
     function extractCourseExercisePairs(savedState) {
-        const items = document.querySelectorAll('.list-group-item.timeline-event-list-item');
+        const wrapperItems = [...document.querySelector('[data-region="event-list-wrapper"]')?.children || []];
         const pairs = [];
+        if(!wrapperItems) return pairs;
 
-        items.forEach((item) => {
-            const courseNameElement = item.querySelector('.event-name-container small');
-            const exerciseNameElement = item.querySelector('.event-name-container a');
-            const timeElement = item.querySelector('.text-end.text-nowrap.align-self-center.ms-1');
+        wrapperItems.forEach(el => {
+            if (!el.dataset.region) return;
 
-            if (courseNameElement && exerciseNameElement) {
-                const courseName = courseNameElement.innerText.trim().replace("יש להגיש את 'מטלה' · ", '');
-                const exerciseName = exerciseNameElement.innerText.trim();
-                const legacyKey = `${courseName}::${exerciseName}`;
-                const assignmentLink = exerciseNameElement.href || '';
-                const uniqueKey = computeStableAssignmentKey(assignmentLink, courseName, exerciseName);
+            let itemWrapper = el.nextElementSibling;
+            while (itemWrapper && !itemWrapper.classList.contains('mt-3')) {
+                const item = itemWrapper.querySelector('.list-group-item.timeline-event-list-item');
+                if(!item) continue;
+                const courseNameElement = item.querySelector('.event-name-container small');
+                const exerciseNameElement = item.querySelector('.event-name-container a');
+                const timeElement = item.querySelector('.text-end.text-nowrap.align-self-center.ms-1');
+                
+                if (courseNameElement && exerciseNameElement) {
+                    const courseName = courseNameElement.innerText.trim().replace("יש להגיש את 'מטלה' · ", '');
+                    const exerciseName = exerciseNameElement.innerText.trim();
+                    const legacyKey = `${courseName}::${exerciseName}`;
+                    const assignmentLink = exerciseNameElement.href || '';
+                    const uniqueKey = computeStableAssignmentKey(assignmentLink, courseName, exerciseName);
+                    const deadline = parseInt(el.getAttribute('data-timestamp'), 10);
+                    const time = timeElement ? timeElement.innerText.trim() : '23:55';
 
-                const time = timeElement ? timeElement.innerText.trim() : '23:55';
-
-                let deadline = null;
-                const wrapper = item.closest('.pb-2') || item.closest('[data-region="event-list-wrapper"]');
-                if (wrapper) {
-                    const allDateHeaders = wrapper.querySelectorAll('[data-region="event-list-content-date"]');
-                    for (let i = 0; i < allDateHeaders.length; i++) {
-                        const currentList = allDateHeaders[i].nextElementSibling;
-                        if (currentList?.contains(item)) {
-                            deadline = parseInt(allDateHeaders[i].getAttribute('data-timestamp'), 10);
-                            break;
-                        }
+                    if (resolveVisibilityFromState(savedState, uniqueKey, legacyKey) === false) {
+                        item.style.display = 'none';
+                    } else {
+                        item.style.display = '';
                     }
+                    pairs.push({
+                        courseName,
+                        exerciseName,
+                        item,
+                        uniqueKey,
+                        legacyKey,
+                        deadline,
+                        time,
+                        assignmentLink
+                    });
                 }
-
-                if (resolveVisibilityFromState(savedState, uniqueKey, legacyKey) === false) {
-                    item.style.display = 'none';
-                } else {
-                    item.style.display = '';
-                }
-
-                pairs.push({
-                    courseName,
-                    exerciseName,
-                    item,
-                    uniqueKey,
-                    legacyKey,
-                    deadline,
-                    time,
-                    assignmentLink
-                });
+                itemWrapper = itemWrapper.nextElementSibling;
             }
         });
 
